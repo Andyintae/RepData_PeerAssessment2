@@ -1,0 +1,116 @@
+---
+title: "Severe weather event and economic consequences"
+author: "Andyintae"
+date: '2020 8 1 '
+output: html_document
+---
+
+## Synopsis  
+
+Storms and other severe weather events can cause both public health and economic problems for communities and municipalities. Many severe events can result in fatalities, injuries, and property damage, and preventing such outcomes to the extent possible is a key concern. This analysis involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.  
+The events in the database start in the year 1950 and end in November 2011. In the earlier years of the database there are generally fewer events recorded, most likely due to a lack of good records. More recent years should be considered more complete.  
+I am going to analyze the storm data set to figure out, which types of events are most harmful with respect to population health.
+And I will also analyze, which types of events have the greatest economic consequences.  
+This analysis will be conducted using reproducible method so that anyone can confirm them. You can find how to processing data and the result of it.
+Let's review the relationship between severe weather event and economic consequences.
+
+Excerpted from project introduction{https://www.coursera.org/learn/reproducible-research/peer/OMZ37/course-project-2}
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Package Loading  
+```{r}
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(forcats)
+```
+
+## Data Processing  
+
+1. First of all, we should download the data and load it.
+```{r, cache=TRUE}
+wd <- getwd()
+
+url_storm <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+
+download.file(url_storm, destfile = paste0(wd, "/StormData.csv.bz2"))
+
+stormdata <- read_csv("StormData.csv.bz2", 
+                      col_types = list(PROPDMGEXP = col_character(), CROPDMGEXP = col_character()))
+```
+
+2. Let's check the data is loaded well and have a glimpse it. 
+```{r}
+head(stormdata)
+tail(stormdata)
+glimpse(stormdata)
+```
+
+3. Select columns and transform the unit.  
+ "H" and "h" mean "hecto" which is 100 = 10^2.  
+ "K" and "k" mean "Kilo" which is 1,000 = 10^3.  
+ "M" and "m" mean "Million" which is 1,000,000 = 10^6.  
+ "B" and "b" mean "Billion" which is 1,000,000,000 = 10^9.
+```{r}
+stormdata_evtype <- stormdata %>% 
+    select(EVTYPE, FATALITIES, INJURIES, PROPDMG, PROPDMGEXP, CROPDMG, CROPDMGEXP) %>% 
+    mutate(PROPDMGEXP_scale = if_else(is.na(PROPDMGEXP), 1,
+                              if_else(PROPDMGEXP == "K", 10^3,
+                              if_else(PROPDMGEXP %in% c("m", "M"), 10^6,
+                              if_else(PROPDMGEXP == "B", 10^9,
+                              if_else(PROPDMGEXP == "1", 10^1,
+                              if_else(PROPDMGEXP %in% c("2","H","h"), 10^2,
+                              if_else(PROPDMGEXP == "3", 10^3,
+                              if_else(PROPDMGEXP == "4", 10^4,
+                              if_else(PROPDMGEXP == "5", 10^5,
+                              if_else(PROPDMGEXP == "6", 10^6,
+                              if_else(PROPDMGEXP == "7", 10^7,        
+                              if_else(PROPDMGEXP == "8", 10^8,
+                              if_else(PROPDMGEXP == "9", 10^9, 1))))))))))))),
+           CROPDMGEXP_scale = if_else(is.na(CROPDMGEXP), 1,
+                              if_else(CROPDMGEXP %in% c("K", "k"), 10^3,
+                              if_else(CROPDMGEXP %in% c("m", "M"), 10^6,
+                              if_else(CROPDMGEXP == "B", 10^9,
+                              if_else(CROPDMGEXP == "2", 10^2, 1))))))
+```
+
+
+## Result  
+
+Q1. Across the United States, which types of events are most harmful with respect to population health?  
+Answer : TORNADO (Fatalities : 5,633, Injuries : 91,346, Total_CASUALTIES : 96,979)  
+
+Table.1 : Weather event and population health  
+```{r}
+stormdata_evtype %>% 
+    group_by(EVTYPE) %>% 
+    summarise(SUM_FATALITIES = sum(FATALITIES),
+              SUM_INJURIES   = sum(INJURIES),
+              Total_CASUALTIES = SUM_FATALITIES + SUM_INJURIES) %>% 
+    arrange(desc(Total_CASUALTIES))
+```
+
+Plot.1 : Weather event and population health
+```{r}
+stormdata_evtype %>% 
+  group_by(EVTYPE) %>% 
+  summarise(SUM_FATALITIES = sum(FATALITIES),
+            SUM_INJURIES   = sum(INJURIES)) %>% 
+  top_n(10) %>% 
+  gather(TYPE, Total_CASUALTIES, -EVTYPE) %>% 
+  mutate(EVTYPE = fct_reorder(as.factor(EVTYPE),Total_CASUALTIES),
+         TYPE = factor(TYPE, levels = c("SUM_INJURIES", "SUM_FATALITIES"))) %>% 
+  group_by(EVTYPE) %>% 
+  ggplot(aes(x = EVTYPE, y = Total_CASUALTIES, fill = TYPE))+
+  geom_col() +
+  labs(x = "Event type", y = "Total casulaties = fatalities + injuries",  
+       title = "Weather event and population health") +
+  coord_flip()
+```
+
+
+
