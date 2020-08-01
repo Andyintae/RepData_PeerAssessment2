@@ -14,7 +14,7 @@ And I will also analyze, which types of events have the greatest economic conseq
 This analysis will be conducted using reproducible method so that anyone can confirm them. You can find how to processing data and the result of it.
 Let's review the relationship between severe weather event and economic consequences.
 
-Excerpted from project introduction{https://www.coursera.org/learn/reproducible-research/peer/OMZ37/course-project-2}
+_Excerpted from project introduction <https://www.coursera.org/learn/reproducible-research/peer/OMZ37/course-project-2>_
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -31,7 +31,7 @@ library(forcats)
 
 ## Data Processing  
 
-1. First of all, we should download the data and load it.
+### 1. First of all, we should download the data and load it.
 ```{r, cache=TRUE}
 wd <- getwd()
 
@@ -43,14 +43,14 @@ stormdata <- read_csv("StormData.csv.bz2",
                       col_types = list(PROPDMGEXP = col_character(), CROPDMGEXP = col_character()))
 ```
 
-2. Let's check the data is loaded well and have a glimpse it. 
+### 2. Let's check the data is loaded well and have a glimpse it. 
 ```{r}
 head(stormdata)
 tail(stormdata)
 glimpse(stormdata)
 ```
 
-3. Select columns and transform the unit.  
+### 3. Select columns and transform the unit.  
  "H" and "h" mean "hecto" which is 100 = 10^2.  
  "K" and "k" mean "Kilo" which is 1,000 = 10^3.  
  "M" and "m" mean "Million" which is 1,000,000 = 10^6.  
@@ -81,10 +81,11 @@ stormdata_evtype <- stormdata %>%
 
 ## Result  
 
-Q1. Across the United States, which types of events are most harmful with respect to population health?  
-Answer : TORNADO (Fatalities : 5,633, Injuries : 91,346, Total_CASUALTIES : 96,979)  
+### Q1. Across the United States, which types of events are most harmful with respect to population health?  
 
-Table.1 : Weather event and population health  
+**Answer : TORNADO (Fatalities : 5,633 / Injuries : 91,346 / Total_CASUALTIES : 96,979)**  
+
+**Table.1 : Weather event and population health**  
 ```{r}
 stormdata_evtype %>% 
     group_by(EVTYPE) %>% 
@@ -94,7 +95,7 @@ stormdata_evtype %>%
     arrange(desc(Total_CASUALTIES))
 ```
 
-Plot.1 : Weather event and population health
+**Plot.1 : Weather event and population health**  
 ```{r}
 stormdata_evtype %>% 
   group_by(EVTYPE) %>% 
@@ -113,4 +114,42 @@ stormdata_evtype %>%
 ```
 
 
+### Q2. Across the United States, which types of events have the greatest economic consequences?  
 
+**Answer : FLOOD (damage of properties : 144,657,709,807 / damage of crops : 5,661,968,450 / Total damages : 144,657,709,807)**  
+
+**Table.2 : Weather event and Economic consequences**  
+```{r}
+stormdata_evtype %>% 
+  mutate(PROPDMG_final = PROPDMG * PROPDMGEXP_scale,
+         CROPDMG_final = CROPDMG * CROPDMGEXP_scale) %>% 
+  group_by(EVTYPE) %>% 
+  summarise(SUM_PROPDMG = sum(PROPDMG_final, na.rm = TRUE),
+            SUM_CROPDMG = sum(CROPDMG_final, na.rm = TRUE),
+            Total_DMG   = SUM_PROPDMG + SUM_CROPDMG) %>% 
+  arrange(desc(Total_DMG))
+```
+
+**Plot.2 : Weather event and Economic consequences**  
+```{r}
+stormdata_evtype %>% 
+  mutate(PROPDMG_final = PROPDMG * PROPDMGEXP_scale,
+         CROPDMG_final = CROPDMG * CROPDMGEXP_scale) %>% 
+  group_by(EVTYPE) %>% 
+  summarise(SUM_PROPDMG = sum(PROPDMG_final, na.rm = TRUE),
+            SUM_CROPDMG = sum(CROPDMG_final, na.rm = TRUE),
+            Total_DMG   = SUM_PROPDMG + SUM_CROPDMG) %>% 
+  arrange(desc(Total_DMG)) %>% 
+  top_n(10) %>% 
+  gather(TYPE, Total_DMG, -EVTYPE, -Total_DMG) %>% 
+  mutate(EVTYPE = fct_reorder(as.factor(EVTYPE),Total_DMG)) %>% 
+  group_by(EVTYPE) %>% 
+  ggplot(aes(x = EVTYPE, y = Total_DMG, fill = TYPE))+
+  geom_col() +
+  labs(x = "Event type", y = "Total Damage = Property + Crop",  
+       title = "Weather event and Economic consequences") +
+  coord_flip()
+```
+
+
+_**End of analysis.**_

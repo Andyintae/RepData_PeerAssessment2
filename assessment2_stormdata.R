@@ -61,9 +61,11 @@ stormdata_evtype %>%
 stormdata_evtype %>% 
   group_by(EVTYPE) %>% 
   summarise(SUM_FATALITIES = sum(FATALITIES),
-            SUM_INJURIES   = sum(INJURIES)) %>% 
+            SUM_INJURIES   = sum(INJURIES),
+            Total_CASUALTIES = SUM_FATALITIES + SUM_INJURIES) %>% 
+  arrange(desc(Total_CASUALTIES)) %>% 
   top_n(10) %>% 
-  gather(TYPE, Total_CASUALTIES, -EVTYPE) %>% 
+  gather(TYPE, Total_CASUALTIES, -EVTYPE, -Total_CASUALTIES) %>% 
   mutate(EVTYPE = fct_reorder(as.factor(EVTYPE),Total_CASUALTIES),
          TYPE = factor(TYPE, levels = c("SUM_INJURIES", "SUM_FATALITIES"))) %>% 
   group_by(EVTYPE) %>% 
@@ -75,18 +77,30 @@ stormdata_evtype %>%
 
 
 
+stormdata_evtype %>% 
+  mutate(PROPDMG_final = PROPDMG * PROPDMGEXP_scale,
+         CROPDMG_final = CROPDMG * CROPDMGEXP_scale) %>% 
+  group_by(EVTYPE) %>% 
+  summarise(SUM_PROPDMG = sum(PROPDMG_final, na.rm = TRUE),
+            SUM_CROPDMG = sum(CROPDMG_final, na.rm = TRUE),
+            Total_DMG   = SUM_PROPDMG + SUM_CROPDMG) %>% 
+  arrange(desc(Total_DMG))
 
-names(stormdata_evtype)
 
 stormdata_evtype %>% 
-  mutate(EVTYPE = as_factor(EVTYPE),
-         PROPDMG = as.numeric(PROPDMG),
-         CROPDMG = as.numeric(CROPDMG)
-  ) %>% 
+  mutate(PROPDMG_final = PROPDMG * PROPDMGEXP_scale,
+         CROPDMG_final = CROPDMG * CROPDMGEXP_scale) %>% 
   group_by(EVTYPE) %>% 
-  summarise(sum_PROPDMG = sum(PROPDMG, na.rm = TRUE), 
-            sum_CROPDMG = sum(CROPDMG, na.rm = TRUE),
-            sum_PROPDMG_CROPDMG = sum_PROPDMG + sum_CROPDMG) %>% 
-  arrange(desc(sum_PROPDMG_CROPDMG))
-
-table(stormdata$PROPDMGEXP)
+  summarise(SUM_PROPDMG = sum(PROPDMG_final, na.rm = TRUE),
+            SUM_CROPDMG = sum(CROPDMG_final, na.rm = TRUE),
+            Total_DMG   = SUM_PROPDMG + SUM_CROPDMG) %>% 
+  arrange(desc(Total_DMG)) %>% 
+  top_n(10) %>% 
+  gather(TYPE, Total_DMG, -EVTYPE, -Total_DMG) %>% 
+  mutate(EVTYPE = fct_reorder(as.factor(EVTYPE),Total_DMG)) %>% 
+  group_by(EVTYPE) %>% 
+  ggplot(aes(x = EVTYPE, y = Total_DMG, fill = TYPE))+
+  geom_col() +
+  labs(x = "Event type", y = "Total Damage = Property + Crop",  
+       title = "Weather event and Economic consequences") +
+  coord_flip()
